@@ -35,7 +35,6 @@ client = NotionClient(token_v2="d0afc93e6c403df8d1da462215d6b3639f11491188212242
 
 page = client.get_block("https://www.notion.so/asd-1a30571cac244510b0013c0ef7543a25")
 
-page.title = "Я пургаміст"
 for child in page.children:
     print(child)
 
