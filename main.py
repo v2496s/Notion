@@ -1,7 +1,15 @@
 import requests, json
 
+from pymongo import MongoClient
+
+cluster = MongoClient("mongodb+srv://notionAPI:pro100pro1238@cluster0.phkvz.mongodb.net/ForApi?retryWrites=true&w=majority")
+db = cluster["ForApi"]
+col = db["Block"]
+
+
+
 token = "your token"
-database_id = "your db_id"
+database_id = "your db id"
 headers = {
     "Authorization": "Bearer " + token,
     "Content-Type": "application/json",
@@ -9,22 +17,22 @@ headers = {
 }
 
 def readDB(database_id,headers):
-    try:
+
         Url = f"https://api.notion.com/v1/databases/{database_id}"
         response = requests.request("GET", Url, headers=headers)
+        col.insert_one({"json": response.json()})
         #print(response.json())
         with open('./db.json', 'w', encoding='utf8') as f:
             json.dump(response.json(), f, ensure_ascii=False)
         return response.json()
-    except:
-        return "Error while fetching a block..."
 
-#readDB(database_id,headers)
+readDB(database_id,headers)
 
 def get_page_by_id(token, id, ):
     try:
         Url = "https://api.notion.com/v1/pages/" + id
         response = requests.request("GET", Url, headers=headers)
+        col.insert_one({"json": response.json()})
         #print(response.json())
         with open('./db.json', 'w', encoding='utf8') as f:
             json.dump(response.json(), f, indent=4, ensure_ascii=False)
@@ -37,6 +45,7 @@ def get_page_by_id(token, id, ):
 def get_list_of_pages(headers):
     try:
         response = requests.post('https://api.notion.com/v1/search',headers=headers,)
+        col.insert_one({"json": response.json()})
         #print(response.json())
         with open('./db.json', 'w', encoding='utf8') as f:
             json.dump(response.json(), f, indent=4, ensure_ascii=False)
@@ -87,7 +96,6 @@ window.mainloop()
 
 
 """
-
 import unittest
 
 class TestStringMethods(unittest.TestCase):
@@ -106,3 +114,5 @@ class TestStringMethods(unittest.TestCase):
         expected = "Error while fetching a block..."
         print(expected)
         self.assertEqual(actual, expected)
+
+
