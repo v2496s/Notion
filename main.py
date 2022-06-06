@@ -2,7 +2,7 @@ import requests, json
 
 from pymongo import MongoClient
 
-cluster = MongoClient("mongodb+srv://notionAPI:pro100pro1238@cluster0.phkvz.mongodb.net/ForApi?retryWrites=true&w=majority")
+cluster = MongoClient("mongodb+srv://notionAPI:pass@cluster0.phkvz.mongodb.net/ForApi?retryWrites=true&w=majority")
 db = cluster["ForApi"]
 col = db["Block"]
 
