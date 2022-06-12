@@ -25,11 +25,13 @@ def create_headers(token):
 def create_url(type):
     url = "https://api.notion.com/v1/"
     if type == "db":
-        url += "databases/"
+        url += "search/"
     elif type == "pg":
         url += "pages/"
     elif type == "li":
         url += "search/"
+    elif type == "bl":
+        url+= "blocks/"
     return url
 
 
@@ -39,15 +41,17 @@ def insert_to_mongo(data):
 
 
 def readDB(database_id, token):
-    #try:
-        url = create_url("db")
-        url += f"{database_id}/query"
-        print(url)
-        response = requests.request("POST", url, headers=create_headers(token))
-        insert_to_mongo(response.json())
-        return json.dumps(response.json(),indent=4)
-    #except:
-    #    print("Error while fetching a database...")
+    try:
+        playload = {"page_size": 100}
+        response = requests.post(
+            f"https://api.notion.com/v1/databases/{database_id}/query",
+            json=playload,
+            headers=create_headers(token),
+        )
+
+        return json.dumps(response.json(), indent=4)
+    except:
+        print("Error while fetching a user...")
 
 # readDB(database_id,token)
 
@@ -108,18 +112,21 @@ def column_list(block_id):
     #print(json.dumps(response.json(), indent=4))
     return json.dumps(response.json())
 
-def get_page_by_id(id,token,token_v2,url2):
+def get_page_by_id(id,token):
     #try:
+
+
+
         res = ""
-        url = create_url("pg")
-        url += id
-        print(url)
-        response = requests.request("GET", url, headers=create_headers(token))
+        url = create_url("bl")
+
+
+        url += id + "/children?page_size=100"
+        response = requests.get(url, headers=create_headers(token))
         #insert_to_mongo(response.json())
-        arr = get_children_of_page(token_v2, url2)
-        res = json.dumps(response.json())
-        for i in range (len(get_page_blocks(arr,token))):
-            res += get_page_blocks(arr,token)[i]
+        res = json.dumps(response.json(),indent=4)
+
+
         return res
     #except:
     #    print("Error while fetching a page...")
@@ -161,10 +168,11 @@ def retrieve_block():
     if request.method == ("POST"):
         token = request.form.get("integration")
         database_id = request.form.get("database")
-        if len(token)>0 and len(database_id):
+        if token and database_id:
             result = readDB(database_id,token)
 
             print(result)
+        print(token,database_id)
         return render_template("show.html",result=result)
 
     return render_template("retrieve_a_block.html")
@@ -176,11 +184,9 @@ def retrieve_page():
     if request.method == ("POST"):
         token = request.form.get("integration")
         page = request.form.get("page")
-        page_url = request.form.get("url")
-        v2 = request.form.get("tokenv2")
-        if len(token) > 0 and len(page)>0 and len(page_url)>0 and len(v2)>0:
-            result = get_page_by_id(page, token,v2,page_url)
-            #print(result)
+        if token and page :
+            result = get_page_by_id(page, token)
+            print(result)
         return render_template("show.html", result=result)
 
     return render_template("retrieve_a_page.html")
@@ -193,7 +199,7 @@ def retrieve_list():
         token = request.form.get("integration")
         if len(token) > 0:
             result = get_list_of_pages(token)
-            print(result)
+            #print(result)
         return render_template("show.html", result=result)
 
     return render_template("retrieve_a_list.html")
