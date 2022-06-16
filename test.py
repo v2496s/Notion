@@ -1,3 +1,6 @@
+import collections
+
+import notion.block
 import requests
 import json
 
@@ -101,15 +104,34 @@ for i in response.json()["results"]:
     print_c(i["id"])
 
 """
+
+
 from notion.client import NotionClient
+client = NotionClient(token_v2="e0a7c3d88dbc546477e14a9cbc9cf82df9f7cd41bc373d6fb0d4597d5ff67b8e15bee162a876a5117db338a8ceae29917ef887a52d65bd8acc93620f19b17d270776419890ddf3477e8bf7b755ea")
+page = client.get_block("https://www.notion.so/Rozklad-14217e1dfbc7478fb5cc5e5580d0a952")
 
-# Obtain the `token_v2` value by inspecting your browser cookies on a logged-in (non-guest) session on Notion.so
-client = NotionClient(token_v2="<token_v2>")
+array_of_results = []
+def rec2(arr):
+    global array_of_results
+    if arr.children:
+        array_of_results.append({client.get_block(arr.id).type:client.get_block(arr.id)})
+        for k in arr.children:
+            rec2(k)
+    else:
+        array_of_results.append({client.get_block(arr.id).type: client.get_block(arr.id)})
 
-# Replace this URL with the URL of the page you want to edit
-page = client.get_block("https://www.notion.so/myorg/Test-c0d20a71c0944985ae96e661ccc99821")
 
-print("The old title is:", page.title)
+for child in page.children:
+    #print(child,child.id,child.type)
+    rec2(child)
+    pass
 
-# Note: You can use Markdown! We convert on-the-fly to Notion's internal formatted text data structure.
-page.title = "The title has now changed, and has *live-updated* in the browser!"
+
+
+
+
+for i in array_of_results:
+    print(i)
+
+
+

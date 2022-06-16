@@ -1,13 +1,14 @@
+from flask import Flask, render_template, url_for, request
 import requests, json
 from pymongo import MongoClient
 from notion.client import NotionClient
+array_of_results = []
+first_time=True
+
 
 cluster = MongoClient(
     "mongodb://notionAPI:Zxcvbnm1238!@cluster0-shard-00-00.phkvz.mongodb.net:27017,cluster0-shard-00-01.phkvz.mongodb.net:27017,cluster0-shard-00-02.phkvz.mongodb.net:27017/?ssl=true&replicaSet=atlas-rkmjvp-shard-0&authSource=admin&retryWrites=true&w=majority"
-    #mongodb+srv://notionAPI:Zxcvbnm1238!@cluster0.phkvz.mongodb.net/?retryWrites=true&w=majority
-    #mongodb+srv://notionAPI:Zxcvbnm1238!@cluster0.phkvz.mongodb.net/ForApi?retryWrites=true&w=majority
-    #mongodb://notionAPI:Zxcvbnm1238!@cluster0-shard-00-00.phkvz.mongodb.net:27017,cluster0-shard-00-01.phkvz.mongodb.net:27017,cluster0-shard-00-02.phkvz.mongodb.net:27017/?ssl=true&replicaSet=atlas-rkmjvp-shard-0&authSource=admin&retryWrites=true&w=majority
- )
+     )
 db = cluster["ForApi"]
 col = db["Block"]
 
@@ -34,7 +35,7 @@ def create_url(type):
     elif type == "li":
         url += "search/"
     elif type == "bl":
-        url+= "blocks/"
+        url += "blocks/"
     return url
 
 
@@ -58,15 +59,6 @@ def readDB(database_id, token):
 
 # readDB(database_id,token)
 
-
-def get_children_of_page(tokenv2,url):
-    arr = []
-    client = NotionClient(token_v2=tokenv2)
-    page = client.get_block(url)
-    for child in page.children:
-        print(child)
-        arr.append(child.id)
-    return arr
 
 
 def get_block_by_id(block_id,token):
@@ -115,27 +107,28 @@ def column_list(block_id):
     #print(json.dumps(response.json(), indent=4))
     return json.dumps(response.json())
 
-def get_page_by_id(id,token):
-    #try:
+def get_page_by_id(v2,url):
+    global array_of_results
+    array_of_results = []
+    client = NotionClient(
+        token_v2=v2)
+    page = client.get_block(url)
 
 
+    def rec2(arr):
+        global array_of_results
+        if arr.children:
+            array_of_results.append({client.get_block(arr.id).type: client.get_block(arr.id)})
+            for k in arr.children:
+                rec2(k)
+        else:
+            array_of_results.append({client.get_block(arr.id).type: client.get_block(arr.id)})
 
-        res = ""
-        url = create_url("bl")
-
-
-        url += id + "/children?page_size=100"
-        response = requests.get(url, headers=create_headers(token))
-        #insert_to_mongo(response.json())
-        res = json.dumps(response.json(),indent=4)
-
-
-        return res
-    #except:
-    #    print("Error while fetching a page...")
+    for child in page.children:
+        rec2(child)
 
 
-# get_page_by_id("secret_jlfaf0TOQsF1aOSLK4EpctPLLDNMAyVxQOAlf9JnSLB", "14217e1dfbc7478fb5cc5e5580d0a952")
+    return array_of_results
 
 
 def get_list_of_pages(token):
@@ -144,16 +137,21 @@ def get_list_of_pages(token):
             create_url("li"),
             headers=create_headers(token),
         )
-        #insert_to_mongo(response.json())
-        return json.dumps(response.json(),indent=4)
+        return response.json()
     except:
         print("Error while fetching a user...")
 
 
 # get_list_of_pages(headers)
 
+def get_urls(json_str):
 
-from flask import Flask, render_template, url_for, request
+    arr = []
+    for j in json_str["results"]:
+            arr.append(j["url"])
+    print(arr)
+    return arr
+
 
 
 app = Flask(__name__)
@@ -183,13 +181,14 @@ def retrieve_block():
 
 @app.route("/retrieve_a_page", methods=["POST", "GET"])
 def retrieve_page():
-    result = "there should be json"
+    global array_of_results
     if request.method == ("POST"):
-        token = request.form.get("integration")
-        page = request.form.get("page")
-        if token and page :
-            result = get_page_by_id(page, token)
-            print(result)
+        v2 = request.form.get("v2")
+        url = request.form.get("url")
+        if v2 and url:
+            not_ready_results = get_page_by_id(v2, url)
+            result = not_ready_results.copy()
+        array_of_results = []
         return render_template("show.html", result=result)
 
     return render_template("retrieve_a_page.html")
@@ -197,12 +196,29 @@ def retrieve_page():
 
 @app.route("/retrieve_a_list", methods=["POST", "GET"])
 def retrieve_list():
-    result = "тут мав бути джейсон"
+    array_of_results2 = []
+    array_of_results = []
+    num_of_page = 0
+
+
+
     if request.method == ("POST"):
         token = request.form.get("integration")
-        if len(token) > 0:
-            result = get_list_of_pages(token)
-            #print(result)
+        v2 = request.form.get("v2")
+        if token and v2:
+            not_ready_urls = get_list_of_pages(token)
+
+
+            arr_of_pages = get_urls(not_ready_urls)
+
+            for i in arr_of_pages:
+                num_of_page+=1
+                array_of_results2.append(f"{num_of_page} Page {i}")
+                array_of_results2.append(get_page_by_id(v2,i))
+            result = array_of_results2.copy()
+            array_of_results = []
+            for page in result:
+                print(page)
         return render_template("show.html", result=result)
 
     return render_template("retrieve_a_list.html")
