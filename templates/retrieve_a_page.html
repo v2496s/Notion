@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="eng">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='css/first.css')}}">
+</head>
+<body>
+    <div class="wrap2">
+                <a class="menu-element" href="/"><= Back</a>
+
+    </div>
+    </div>
+
+    <div class = "main-body">
+        <div class = "main-body-box">
+            <a class = "notion_link" href="https://www.notion.so/">Go to Notion</a>
+
+
+            <form method = "POST" style="margin-block:5%" >
+            <div>
+                <label class = "main-body-element">V2:
+                    <input class="main-body-input"
+                           id= "v2"
+                           onchange = "f()"
+                            name="v2">
+                </label>
+
+            <div>
+            <div style="margin-top:5%;">
+                <a class = "main-body-element">Page Url: <input
+                        class="main-body-input"
+                        id= "url"
+                        name="url">
+                    </a>
+                        </div>
+        <div style="margin-top:5%; display:flex; justify-content:center">
+
+            <button   class = "show" >Show
+                </button>
+
+        </div>
+
+        </form>
+
+
+
+        </div>
+    </div>
+    <script src = "{{url_for('static', filename='main.js')}}"></script>
+</body>
+</html>
