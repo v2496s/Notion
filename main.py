@@ -1,21 +1,24 @@
-from flask import Flask, render_template, url_for, request
-import requests, json
+from flask import Flask, render_template, request
+import requests, json, re
 from pymongo import MongoClient
 from notion.client import NotionClient
 array_of_results = []
 first_time=True
 
+password = ""
 
-cluster = MongoClient(
-    "mongodb://notionAPI:Zxcvbnm1238!@cluster0-shard-00-00.phkvz.mongodb.net:27017,cluster0-shard-00-01.phkvz.mongodb.net:27017,cluster0-shard-00-02.phkvz.mongodb.net:27017/?ssl=true&replicaSet=atlas-rkmjvp-shard-0&authSource=admin&retryWrites=true&w=majority"
-     )
-db = cluster["ForApi"]
-col = db["Block"]
+#cluster = MongoClient(
+#    f"mongodb://notionAPI:{password}@cluster0-shard-00-00.phkvz.mongodb.net:27017,cluster0-shard-00-01.phkvz.mongodb.net:27017,cluster0-shard-00-02.phkvz.mongodb.net:27017/?ssl=true&replicaSet=atlas-rkmjvp-shard-0&authSource=admin&retryWrites=true&w=majority"
+#     )
+#db = cluster["ForApi"]
+#col = db["Block"]
 
-token = "token"  #secret_jlfaf0TOQsF1aOSLK4EpctPLLDNMAyVxQOAlf9JnSLB
-database_id = "database_id"  #8ebce70ab01d4b36a26b0b83d07a4cdd
+token = "token"
+database_id = "database_id"
 
 
+def name_from_url(url):
+    return url[22:len(url) - 33]
 
 def create_headers(token):
     headers = {
@@ -44,21 +47,21 @@ def insert_to_mongo(data):
     pass
 
 
-def readDB(database_id, token):
+def get_database_by_id(database_id, token):
     try:
-        playload = {"page_size": 100}
+        playload = payload = {
+        "page_size": 100
+        }
+
         response = requests.post(
             f"https://api.notion.com/v1/databases/{database_id}/query",
             json=playload,
             headers=create_headers(token),
         )
-        print(json.dumps(response.json(),indent=4))
+
         return response.json()
     except:
-        print("Error while fetching a user...")
-
-# readDB(database_id,token)
-
+        print("Error: Can`t read a database")
 
 
 def get_block_by_id(block_id,token):
@@ -70,42 +73,10 @@ def get_block_by_id(block_id,token):
         "Notion-Version": "2021-05-13",
         "Accept": "application/json",
     }
+
     response = requests.request("GET", url, headers=headers)
-    #print(json.dumps(response.json(), indent=4))
     return json.dumps(response.json(), indent=4)
 
-
-
-def get_page_blocks(arr,token):
-    arr2 = []
-    for i in arr:
-        arr2.append(get_block_by_id(i, token))
-        json_o = json.loads(get_block_by_id(i, token))
-        obj = json_o.items()
-        for k, v in obj:
-            if k == "type":
-                if v == "column_list":
-                    arr2.append(column_list(i))
-    return arr2
-
-
-
-def column_list(block_id):
-
-
-    url = f"https://api.notion.com/v1/blocks/{block_id}/children?page_size=100"
-
-    headers = {
-        "Authorization": "Bearer " + "secret_jlfaf0TOQsF1aOSLK4EpctPLLDNMAyVxQOAlf9JnSLB",
-        "Content-Type": "application/json",
-        "Notion-Version": "2021-05-13",
-        "Accept": "application/json",
-    }
-
-    response = requests.request("GET", url, headers=headers)
-
-    #print(json.dumps(response.json(), indent=4))
-    return json.dumps(response.json())
 
 def get_page_by_id(v2,url):
     global array_of_results
@@ -126,8 +97,6 @@ def get_page_by_id(v2,url):
 
     for child in page.children:
         rec2(child)
-
-
     return array_of_results
 
 
@@ -142,35 +111,61 @@ def get_list_of_pages(token):
         print("Error while fetching a user...")
 
 
-# get_list_of_pages(headers)
-
-
-
 def get_content_from_db(json_str):
-    arr_rows = []
-    index = 0
-    for i in json_str["results"]:
-        index += 1
-        arr_rows.append(f" --------------- {index} row ---------------")
-        for key , value in i["properties"].items():
-            for k,v in value.items():
-                if k == "rich_text" or k == "title":
-                    arr_rows.append(v)
-    return arr_rows
+    try:
+        arr_rows = []
+        index = 0
+        for i in json_str["results"]:
+            index += 1
+            arr_rows.append(f" --------------- {index} row ---------------")
+            for key, value in reversed(i["properties"].items()):
+                for k,v in value.items():
+                    if k == "rich_text" or k == "title":
+                        arr_rows.append(v)
+        return arr_rows
+    except:
+        arr_rows= ["Error: Can't read Database"]
+        return  arr_rows
 
 
 def get_urls(json_str):
-
     arr = []
     for j in json_str["results"]:
             arr.append(j["url"])
-    print(arr)
     return arr
 
 
+def image_download(block,name,index):
+    for k,v in block.items():
+        if v.source[0:18] == "https://s3.us-west":
+            response = requests.get(v.source)
+            name = name_from_url(name)
+            open(f"{name}-image-{index}.png", "wb").write(response.content)
+        return v.source
+
+
+def video_download(block,name,index):
+    for k,v in block.items():
+        if v.source[0:18] == "https://s3.us-west":
+            response = requests.get(v.source)
+            name = name_from_url(name)
+            open(f"{name}-video-{index}.mp4", "wb").write(response.content)
+        return v.source
+
+
+def block_sort(arr,name):
+    index = 0
+    for block in arr:
+        for block_type in block:
+            if block_type == "image":
+                index+=1
+                image_download(block,name,index)
+            elif block_type == "video":
+                index+=1
+                video_download(block,name,index)
+
 
 app = Flask(__name__)
-
 
 
 @app.route("/")
@@ -180,30 +175,36 @@ def home():
 
 @app.route("/retrieve_a_block", methods=["POST", "GET"])
 def retrieve_block():
-    result = "there should be json"
     if request.method == ("POST"):
-        token = request.form.get("integration")
+        integration_token = request.form.get("integration")
         database_id = request.form.get("database")
         if token and database_id:
-            result = readDB(database_id,token)
-            array_of_results = get_content_from_db(result)
-        return render_template("show.html",result=array_of_results)
+            result = get_database_by_id(database_id,integration_token)
+            database_content = get_content_from_db(result)
+            return render_template("show.html", result=database_content)
+        else:
+            err = "Error: Invalid input"
+            return render_template("show.html", result=err)
+    else:
+        pass
 
     return render_template("retrieve_a_block.html")
 
 
 @app.route("/retrieve_a_page", methods=["POST", "GET"])
 def retrieve_page():
-    global array_of_results
     if request.method == ("POST"):
         v2 = request.form.get("v2")
         url = request.form.get("url")
         if v2 and url:
             not_ready_results = get_page_by_id(v2, url)
-            result = not_ready_results.copy()
-        array_of_results = []
-        return render_template("show.html", result=result)
-
+            ready_results = not_ready_results.copy()
+            block_sort(ready_results,url)
+            return render_template("show.html", result=ready_results)
+        else:
+            return render_template("show.html", result=["Error: Invalid Input"])
+    else:
+        pass
     return render_template("retrieve_a_page.html")
 
 
@@ -212,18 +213,12 @@ def retrieve_list():
     array_of_results2 = []
     array_of_results = []
     num_of_page = 0
-
-
-
     if request.method == ("POST"):
         token = request.form.get("integration")
         v2 = request.form.get("v2")
         if token and v2:
             not_ready_urls = get_list_of_pages(token)
-
-
             arr_of_pages = get_urls(not_ready_urls)
-
             for i in arr_of_pages:
                 num_of_page+=1
                 array_of_results2.append(f"{num_of_page} Page {i}")
@@ -233,7 +228,6 @@ def retrieve_list():
             for page in result:
                 print(page)
         return render_template("show.html", result=result)
-
     return render_template("retrieve_a_list.html")
 
 
@@ -244,5 +238,4 @@ def show():
 
 if __name__ == "__main__":
     app.run(debug=True,host ="0.0.0.0")
-#1
 

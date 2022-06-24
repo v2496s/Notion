@@ -1,4 +1,4 @@
-import requests, json
+"""import requests, json
 from pymongo import MongoClient
 from notion.client import NotionClient
 
@@ -12,3 +12,35 @@ db = cluster["ForApi"]
 col = db["Block"]
 
 col.insert_one({"_id": 0})
+
+"""
+
+"""
+import boto3
+import os
+import requests
+
+client = boto3.client('s3')
+
+
+bucket = ""
+
+url2 = "https://www.youtube.com/watch?v=IMQEjZHhOEw&ab_channel=%F0%9D%96%8E%F0%9D%96%99%F0%9D%96%86%F0%9D%96%92%F0%9D%96%8E"
+
+response = requests.get(url2)
+
+open("v.mp4", "wb").write(response.content)
+
+
+
+"""
+import re
+
+
+url = "https://www.notion.so/Compendium-1a30571cac244510b0013c0ef7543a25"
+
+
+z1 = 'https://s3.us-west-2.amazonaws.com'
+
+print(z1[0:18])
+#https://s3.us-west
