@@ -34,11 +34,11 @@ def create_url(type):
     if type == "db":
         url += "search/"
     elif type == "pg":
-        url += "pages/"
+        url += "blocks/"
     elif type == "li":
         url += "search/"
-    elif type == "bl":
-        url += "blocks/"
+    else:
+        return
     return url
 
 
@@ -76,6 +76,30 @@ def get_block_by_id(block_id,token):
 
     response = requests.request("GET", url, headers=headers)
     return json.dumps(response.json(), indent=4)
+
+
+def get_type(block):
+    if block["type"]:
+        return block["type"]
+    else:
+        return False
+
+def get_content(block, type):
+    if block[f"{type}"]:
+        return {type: block[f"{type}"]}
+    else:
+        return False
+
+
+def detect_children(block):
+    if block["has_children"]:
+        if block["has_children"] == True:
+            return True
+        else:
+            return False
+    else:
+        return False
+
 
 
 def get_page_by_id(v2,url):
@@ -175,7 +199,7 @@ def home():
 
 @app.route("/retrieve_a_block", methods=["POST", "GET"])
 def retrieve_block():
-    if request.method == ("POST"):
+    if request.method == "POST":
         integration_token = request.form.get("integration")
         database_id = request.form.get("database")
         if token and database_id:
@@ -193,14 +217,49 @@ def retrieve_block():
 
 @app.route("/retrieve_a_page", methods=["POST", "GET"])
 def retrieve_page():
-    if request.method == ("POST"):
-        v2 = request.form.get("v2")
-        url = request.form.get("url")
-        if v2 and url:
-            not_ready_results = get_page_by_id(v2, url)
-            ready_results = not_ready_results.copy()
-            block_sort(ready_results,url)
-            return render_template("show.html", result=ready_results)
+
+    def get_children(block_id):
+        url = f"https://api.notion.com/v1/blocks/{block_id}/children?page_size=100"
+        headers = {
+            "Authorization": "Bearer " + "secret_jlfaf0TOQsF1aOSLK4EpctPLLDNMAyVxQOAlf9JnSLB",
+            "Content-Type": "application/json",
+            "Notion-Version": "2021-05-13",
+            "Accept": "application/json",
+        }
+        for i in requests.get(url, headers=headers).json()["results"]:
+            rec(i)
+
+
+    def rec(block):
+        array_of_results.append({ get_type(block) : get_content(block, get_type(block)) })
+
+        if detect_children(block):
+            get_children(block["id"])
+
+
+
+
+    if request.method == "POST":
+        integration = request.form.get("integration")
+        page_id = request.form.get("page_id")
+        if integration and page_id:
+
+            headers = create_headers(integration)
+            url = create_url("pg")
+            url += page_id
+            url += "/children?page_size=100"
+            page = (requests.get(url, headers=headers).json()).copy()
+            global array_of_results
+
+            for i in page["results"]:
+                if detect_children(i):
+                    rec(i)
+                else:
+                    array_of_results.append(get_content(i, get_type(i)))
+
+
+            #block_sort(array_of_results,url)
+            return render_template("show.html", result=array_of_results)
         else:
             return render_template("show.html", result=["Error: Invalid Input"])
     else:
@@ -211,9 +270,8 @@ def retrieve_page():
 @app.route("/retrieve_a_list", methods=["POST", "GET"])
 def retrieve_list():
     array_of_results2 = []
-    array_of_results = []
     num_of_page = 0
-    if request.method == ("POST"):
+    if request.method == "POST":
         token = request.form.get("integration")
         v2 = request.form.get("v2")
         if token and v2:
@@ -224,7 +282,7 @@ def retrieve_list():
                 array_of_results2.append(f"{num_of_page} Page {i}")
                 array_of_results2.append(get_page_by_id(v2,i))
             result = array_of_results2.copy()
-            array_of_results = []
+
             for page in result:
                 print(page)
         return render_template("show.html", result=result)
